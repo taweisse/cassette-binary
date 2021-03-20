@@ -11,6 +11,8 @@ from bitstring import BitArray
 SAMP_RATE = 44100
 FREQ = 5000
 
+SEP_CYCLES = 3
+
 # Generates samples for a number of cycles of a sin wave at a given frequency.
 def generateSin(freq, cycles = 1):
 	totalSamples = int((SAMP_RATE / freq) * cycles)
@@ -32,7 +34,7 @@ def encodeByteAmplitude(byte):
 			samples.extend(generateSin(FREQ, 2))
 		else:
 			samples.extend(generateSin(FREQ, 5))
-		samples.extend([0] * 20)
+		samples.extend([0] * (SAMP_RATE / FREQ) * SEP_CYCLES)
 	return samples
 
 if __name__ == "__main__":
