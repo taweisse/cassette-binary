@@ -1,9 +1,9 @@
 // Reference and minified version at the end
 
-var DUR = 5     // duration in seconds
+var DUR = 1     // duration in seconds
 var NCH = 1     // number of channels
 var SPS = 44100 // samples per second
-var BPS = 1     // bytes per sample
+var BPS = 2     // bytes per sample
 
 // PCM Data
 // --------------------------------------------
@@ -47,39 +47,83 @@ function put(n, l)
 }
 
 var size = DUR * NCH * SPS * BPS;
-var data = "RIFF" + put(44 + size, 4) + "WAVEfmt " + put(16, 4);
+var data1 = "RIFF" + put(44 + size, 4) + "WAVEfmt " + put(16, 4);
 
-data += put(1              , 2); // wFormatTag (pcm)
-data += put(NCH            , 2); // nChannels
-data += put(SPS            , 4); // nSamplesPerSec
-data += put(NCH * BPS * SPS, 4); // nAvgBytesPerSec
-data += put(NCH * BPS      , 2); // nBlockAlign
-data += put(BPS * 8        , 2); // wBitsPerSample
+data1 += put(1              , 2); // wFormatTag (pcm)
+data1 += put(NCH            , 2); // nChannels
+data1 += put(SPS            , 4); // nSamplesPerSec
+data1 += put(NCH * BPS * SPS, 4); // nAvgBytesPerSec
+data1 += put(NCH * BPS      , 2); // nBlockAlign
+data1 += put(BPS * 8        , 2); // wBitsPerSample
 
-data += "data" + put(size, 4);
+data1 += "data" + put(size, 4);
+
+const writeString = (arr, str, pos) => {
+	for (let i = 0; i < str.length; i++) {
+		arr[i + pos] = str.charCodeAt(i);
+	}
+}
+
+const writeInt = (arr, int, pos) => {
+
+}
+
+// Try the above but with a typed array instead.
+let data = new Uint8Array(10)
+writeString(data, "RIFF", 0)
+console.log(data)
+
+
 
 for (var i = 0; i < DUR; i++)
 {		
 	for(var j = 0; j < SPS; j++)
 	{
-		data += put(Math.floor((Math.sin(j/SPS * Math.PI * 2 * 440) + 1) / 2 * Math.pow(2, BPS * 8)), BPS);
+		data1 += put(Math.floor((Math.sin(j/SPS * Math.PI * 2 * 440) + 1) / 2 * Math.pow(2, BPS * 8)), BPS);
 	}
 }
 
-var WAV = new Audio("data:Audio/WAV;base64," + btoa(data));
+var WAV = new Audio("data:Audio/WAV;base64," + btoa(data1));
 WAV.setAttribute("controls","controls");
-WAV.play();
 
 document.body.appendChild(WAV);
 
-// Reference:
-// http://www-mmsp.ece.mcgill.ca/documents/audioformats/wave/wave.html
-// https://de.wikipedia.org/wiki/RIFF_WAVE
+// Load image into canvas: -----------------------------------------------------
 
-/* Minified version with pre-defined header
-	// RIFF WAVE PCM | Mono | 44100Hz | 8 bit
-	for(i=44100*DUR,d="";i--;)d+=String.fromCharCode(~~((Math.sin(i/44100*6.283*440)+1)*128));
-	new Audio("data:Audio/WAV;base64,"+btoa("RIFFdataWAVEfmt "+atob("EAAAAAEAAQBErAAARKwAAAEACABkYXRh/////w==")+d)).play();
-	// Web Audio API equivalent (assumes 44100 kHz sample rate):
-	a=new AudioContext();s=a.createScriptProcessor(t=b=4096,1,1);s.connect(a.destination);s.onaudioprocess=function(e){for(i=0;i<b;)e.outputBuffer.getChannelData(0)[i++]=Math.sin(t++/44100*6.283*440)}
-*/
+const TARGET_HEIGHT = 400
+
+const handleUpload = (e) => {
+	let reader = new FileReader()
+	reader.onload = (e) => {
+		let img = new Image()
+		img.onload = () => {
+			// Scale image to the target height.
+			let scaler = TARGET_HEIGHT / img.height
+			canvas.width = Math.round(img.width * scaler)
+			canvas.height = TARGET_HEIGHT
+			ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+		}
+		img.src = e.target.result
+	}
+	reader.readAsDataURL(e.target.files[0])
+}
+
+const encodeImage = (e) => {
+	console.log(ctx.getImageData(0, 0, canvas.width, canvas.height))
+}
+
+let imageLoader = document.getElementById('imageLoader')
+imageLoader.addEventListener('change', handleUpload)
+
+let canvas = document.getElementById('image')
+let ctx = canvas.getContext('2d')
+
+let encodeBtn = document.getElementById('encode')
+encodeBtn.addEventListener('click', encodeImage)
+
+
+// DEBUG: Testing sin-generator.js:
+test = new SinGenerator(10000, 44100)
+for (let i = 0; i < 1000; i++) {
+	console.log(test.Step())
+}

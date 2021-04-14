@@ -5,15 +5,22 @@
 <head>
 	<meta charset="utf-8">
 
-	<title>The HTML5 Herald</title>
-	<meta name="description" content="The HTML5 Herald">
-	<meta name="author" content="SitePoint">
+	<title>WAV Encoder</title>
+	<meta name="description" content="WAV Image Encoder">
+	<meta name="author" content="Todd Weisse">
 
 	<!-- <link rel="stylesheet" href="css/styles.css?v=1.0"> -->
+
+	<label for="imageLoader">Image File:</label>
+	<input type="file" id="imageLoader" name="imageLoader">
+	<canvas id="image"></canvas>
+
+	<button id="encode">Encode WAV</button>
 
 </head>
 
 <body>
+	<script src="sin-generator.js"></script>
 	<script src="waveGen.js"></script>
 </body>
 
