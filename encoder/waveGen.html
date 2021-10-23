@@ -11,11 +11,26 @@
 
 	<!-- <link rel="stylesheet" href="css/styles.css?v=1.0"> -->
 
+	<div id="spectrogram"></div>
+
+	<script src="jquery.min.js"></script>
+	<script src="wav.js"></script>
+	<script src='spectrogram-v12.js'></script>
+	<script>
+	var spectrogram = new Spectrogram({
+		font:"14px Arial",
+		fftsize: Math.pow(2,11),
+		scrollDirection: 1,
+		backgroundColor: "#48a",
+		audioFiles: []
+	});
+	</script>
+
+	<button id="encode">Encode WAV</button>
+
 	<label for="imageLoader">Image File:</label>
 	<input type="file" id="imageLoader" name="imageLoader">
 	<canvas id="image"></canvas>
-
-	<button id="encode">Encode WAV</button>
 
 </head>
 

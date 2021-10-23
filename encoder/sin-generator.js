@@ -1,3 +1,4 @@
+// Class for generating sine waves one sample at a time.
 
 class SinGenerator {
 	constructor(freq, sampleRate) {

@@ -1,96 +1,82 @@
-// Reference and minified version at the end
+// Convert the image to audio: -------------------------------------------------
 
-var DUR = 1     // duration in seconds
-var NCH = 1     // number of channels
-var SPS = 44100 // samples per second
-var BPS = 2     // bytes per sample
+const MIN_FREQ = 1000
+const MAX_FREQ = 10000
+const DUR_PP = 0.01
+const SAMP_RATE = 44100
 
-// PCM Data
-// --------------------------------------------
-// Field           | Bytes | Content
-// --------------------------------------------
-// ckID            |     4 | "fmt "
-// cksize          |     4 | 0x0000010 (16)
-// wFormatTag      |     2 | 0x0001 (PCM)
-// nChannels       |     2 | NCH
-// nSamplesPerSec  |     4 | SPS
-// nAvgBytesPerSec |     4 | NCH * BPS * SPS
-// nBlockAlign     |     2 | NCH * BPS * NCH
-// wBitsPerSample  |     2 | BPS * 8
+const img2audio = () => {
+	// Get image data.
+	let imgData = ctx.getImageData(0, 0, canvas.width, canvas.height )
 
-// data_size = DUR * NCH * SPS * BPS
-// file_size = 44 (Header) + data_size
+	// DEBUG:
+	console.log(`Image size: ${imgData.width} x ${imgData.height}`)
 
-function dec2hex(n, l)
-{
-	n = n.toString(16);
-	return new Array(l*2-n.length+1).join("0") + n;
-}
-
-function hex2str(hex)
-{
-	var str = [];
-
-	if (hex.length%2) { throw new Error("hex2str(\"" + hex + "\"): invalid input (# of digits must be divisible by 2)"); }
-
-	for(var i = 0; i < hex.length; i += 2)
-	{
-		str.push(String.fromCharCode(parseInt(hex.substr(i,2),16)));
+	// Create an array of SinGenerators, one for each row of pixels.
+	let waves = new Array()
+	let baseFreq = 50;
+	for (let i = 0; i < imgData.height; i++) {
+		waves.push(new SinGenerator(baseFreq * (i + 1), SAMP_RATE))
 	}
 
-	return str.reverse().join("");
-}
+	// Generate audio samples based on the image.
+	let samples = new Float32Array(SAMP_RATE * DUR_PP * imgData.width);
+	let scalers = new Array(imgData.height)
+	let i = 0
+	for (col = 0; col < imgData.width; col++) {
+		for (row = 0; row < imgData.height; row++) {
+			// Get intensity at this pixel.
+			let idx = (row * imgData.width * 4) + (col * 4)
+			scalers[row] = imgData.data[idx] / 255
+		}
 
-function put(n, l)
-{
-	return hex2str(dec2hex(n,l));
-}
-
-var size = DUR * NCH * SPS * BPS;
-var data1 = "RIFF" + put(44 + size, 4) + "WAVEfmt " + put(16, 4);
-
-data1 += put(1              , 2); // wFormatTag (pcm)
-data1 += put(NCH            , 2); // nChannels
-data1 += put(SPS            , 4); // nSamplesPerSec
-data1 += put(NCH * BPS * SPS, 4); // nAvgBytesPerSec
-data1 += put(NCH * BPS      , 2); // nBlockAlign
-data1 += put(BPS * 8        , 2); // wBitsPerSample
-
-data1 += "data" + put(size, 4);
-
-const writeString = (arr, str, pos) => {
-	for (let i = 0; i < str.length; i++) {
-		arr[i + pos] = str.charCodeAt(i);
+		// Write the audio data for the length of one pixel according to the
+		// current scalers.
+		for (let s = 0; s < SAMP_RATE * DUR_PP; s++) {
+			let sample = 0
+			waves.forEach((wave, i) => {
+				sample += wave.Step() * scalers[i]
+			})
+			samples[i] = sample / imgData.height
+			i++
+		}
 	}
+
+	console.log(samples)
+
+	let sound = new WAV(SAMP_RATE, 1)
+	sound.addSamples([samples])
+	// sound.download()
+	sound.play()
 }
 
-const writeInt = (arr, int, pos) => {
+// Convert image to black and white: -------------------------------------------
 
-}
+const convertGreyscale = () => {
+	let imgData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+	
+	for (let row = 0; row < imgData.height; row++) {
+		for (let col = 0; col < imgData.width; col++) {
+			let idx = row * 4 * imgData.width + (col * 4)
+			let r = imgData.data[idx]
+			let g = imgData.data[idx + 1]
+			let b = imgData.data[idx + 2]
+			let avg = (0.299 * r) + (0.587 * g) + (0.114 * b)
 
-// Try the above but with a typed array instead.
-let data = new Uint8Array(10)
-writeString(data, "RIFF", 0)
-console.log(data)
-
-
-
-for (var i = 0; i < DUR; i++)
-{		
-	for(var j = 0; j < SPS; j++)
-	{
-		data1 += put(Math.floor((Math.sin(j/SPS * Math.PI * 2 * 440) + 1) / 2 * Math.pow(2, BPS * 8)), BPS);
+			// Reassign the color components.
+			imgData.data[idx] = avg
+			imgData.data[idx + 1] = avg
+			imgData.data[idx + 2] = avg
+		}
 	}
+
+	// Reassign to the canvas.
+	ctx.putImageData(imgData, 0, 0, 0, 0, imgData.width, imgData.height)
 }
-
-var WAV = new Audio("data:Audio/WAV;base64," + btoa(data1));
-WAV.setAttribute("controls","controls");
-
-document.body.appendChild(WAV);
 
 // Load image into canvas: -----------------------------------------------------
 
-const TARGET_HEIGHT = 400
+const TARGET_HEIGHT = 250
 
 const handleUpload = (e) => {
 	let reader = new FileReader()
@@ -102,6 +88,9 @@ const handleUpload = (e) => {
 			canvas.width = Math.round(img.width * scaler)
 			canvas.height = TARGET_HEIGHT
 			ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+
+			// Convert the image to greyscale.
+			convertGreyscale()	
 		}
 		img.src = e.target.result
 	}
@@ -119,11 +108,4 @@ let canvas = document.getElementById('image')
 let ctx = canvas.getContext('2d')
 
 let encodeBtn = document.getElementById('encode')
-encodeBtn.addEventListener('click', encodeImage)
-
-
-// DEBUG: Testing sin-generator.js:
-test = new SinGenerator(10000, 44100)
-for (let i = 0; i < 1000; i++) {
-	console.log(test.Step())
-}
+encodeBtn.addEventListener('click', img2audio)
